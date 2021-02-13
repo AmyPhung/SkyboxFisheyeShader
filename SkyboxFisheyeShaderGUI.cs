@@ -4,7 +4,7 @@ using UnityEditor.AnimatedValues;
 
 namespace UnityEditor
 {
-    internal class SkyboxPanoramicBetaShaderGUI : ShaderGUI
+    internal class SkyboxFisheyeShaderGUI : ShaderGUI
     {
         readonly AnimBool m_ShowLatLongLayout = new AnimBool();
         readonly AnimBool m_ShowMirrorOnBack = new AnimBool();
