@@ -14,3 +14,7 @@ Detailed instructions on how to use this shader are available [here](https://doc
 
 ## Feedback and Bug Reporting
 Until this feature is officially shipped, please submit your feedback in [this thread in the Unity VR forum](https://forum.unity3d.com/threads/how-to-integrate-360-video-with-unity.485405/)
+
+## Additional references 
+https://github.com/greggman/fisheye-skybox-unity/blob/master/Assets/Shaders/Skybox-Panoramic-Gman.shader
+https://stackoverflow.com/questions/60828221/making-a-fisheye-skybox-shader-in-unity
