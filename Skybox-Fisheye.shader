@@ -5,6 +5,17 @@ Shader "Skybox/Fisheye" {
         _Rotation("Rotation", Range(0, 360)) = 0
         [NoScaleOffset] _LTex("Left Spherical  (HDR)", 2D) = "grey" {}
         [NoScaleOffset] _RTex("Right Spherical  (HDR)", 2D) = "grey" {}
+        _L_CX("Left Image Center (X)", Range(0, 1)) = 0.5
+        _L_CY("Left Image Center (Y)", Range(0, 1)) = 0.5
+        _R_CX("Right Image Center (X)", Range(0, 1)) = 0.5
+        _R_CY("Right Image Center (Y)", Range(0, 1)) = 0.5
+
+        //TODO: Make radius more dynamic, don't over-constrain
+        _L_RX("Left Image Radius (X)", Range(0, 1)) = 0.5
+        _L_RY("Left Image Radius (Y)", Range(0, 1)) = 0.5
+        _R_RX("Right Image Radius (X)", Range(0, 1)) = 0.5
+        _R_RY("Right Image Radius (Y)", Range(0, 1)) = 0.5
+
         [KeywordEnum(6 Frames Layout, Latitude Longitude Layout, Fisheye Layout)] _Mapping("Mapping", Float) = 1
         [Enum(360 Degrees, 0, 180 Degrees, 1)] _ImageType("Image Type", Float) = 0
         [Toggle] _MirrorOnBack("Mirror on Back", Float) = 0
@@ -36,6 +47,15 @@ Shader "Skybox/Fisheye" {
                 half4 _Tint;
                 half _Exposure;
                 float _Rotation;
+
+                float _L_CX;
+                float _L_CY;
+                float _R_CX;
+                float _R_CY;
+                float _L_RX;
+                float _L_RY;
+                float _R_RX;
+                float _R_RY;
         #ifndef _MAPPING_6_FRAMES_LAYOUT
                 bool _MirrorOnBack;
                 int _ImageType;
@@ -193,10 +213,12 @@ Shader "Skybox/Fisheye" {
                     o.edgeSize.zw = -o.edgeSize.xy;
         #else // !_MAPPING_6_FRAMES_LAYOUT
                     // Calculate constant horizontal scale and cutoff for 180 (vs 360) image type
+                    // TODO: Modify scale and cutoff to use new coords
                     if (_ImageType == 0)  // 360 degree
                         o.image180ScaleAndCutoff = float2(1.0, 1.0);
                     else  // 180 degree
                         o.image180ScaleAndCutoff = float2(2.0, _MirrorOnBack ? 1.0 : 0.5);
+
                     // Calculate constant scale and offset for 3D layouts
                     if (_Layout == 0) // No 3D layout
                         o.layout3DScaleAndOffset = float4(0,0,1,1);
@@ -216,6 +238,9 @@ Shader "Skybox/Fisheye" {
                     float2 tc = ToFisheyeCoords(i.texcoord);
                     if (tc.x > i.image180ScaleAndCutoff[1])
                         return half4(0,0,0,1);
+                    // TODO: Implement this cutoff for y
+                    //if (tc.y > i.image180ScaleAndCutoff[0])
+                    //    return half4(0, 0, 0, 1);
                     tc.x = fmod(tc.x * i.image180ScaleAndCutoff[0], 1);
                     //tc = (tc + i.layout3DScaleAndOffset.xy) * i.layout3DScaleAndOffset.zw;
         #else// _MAPPING_LATITUDE_LONGITUDE_LAYOUT
@@ -227,6 +252,8 @@ Shader "Skybox/Fisheye" {
         #endif
                     if (unity_StereoEyeIndex == 0) {
                         // Left Eye
+                        tc.x = (2 * _L_RX * tc.x) + _L_CX - _L_RX;
+                        tc.y = (2 * _L_RY * tc.y) + _L_CY - _L_RY;
                         half4 tex = tex2D(_LTex, tc);
                         half3 c = DecodeHDR(tex, _LTex_HDR);
                         c = c * _Tint.rgb * unity_ColorSpaceDouble.rgb;
@@ -235,6 +262,8 @@ Shader "Skybox/Fisheye" {
                     }
                     else {
                         // Right Eye
+                        tc.x = (2 * _R_RX * tc.x) + _R_CX - _R_RX;
+                        tc.y = (2 * _R_RY * tc.y) + _R_CY - _R_RY;
                         half4 tex = tex2D(_RTex, tc);
                         half3 c = DecodeHDR(tex, _RTex_HDR);
                         c = c * _Tint.rgb * unity_ColorSpaceDouble.rgb;
