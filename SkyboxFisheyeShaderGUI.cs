@@ -28,7 +28,9 @@ namespace UnityEditor
             ShowProp(materialEditor, FindProperty("_Tint", props));
             ShowProp(materialEditor, FindProperty("_Exposure", props));
             ShowProp(materialEditor, FindProperty("_Rotation", props));
-            ShowProp(materialEditor, FindProperty("_Tex", props));
+            //ShowProp(materialEditor, FindProperty("_CenterX", props));
+            ShowProp(materialEditor, FindProperty("_LTex", props));
+            ShowProp(materialEditor, FindProperty("_RTex", props));
             EditorGUIUtility.labelWidth = lw;
 
             m_ShowLatLongLayout.target = ShowProp(materialEditor, FindProperty("_Mapping", props)) == 1;
