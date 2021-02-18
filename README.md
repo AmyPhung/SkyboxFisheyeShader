@@ -21,7 +21,17 @@ Until this feature is officially shipped, please submit your feedback in [this t
 + Comment on algorithm
 + Improve to use both 2d and 3d images, either side-by-side or over/under
 + Update deprecated player settings issue
-+ Modify projection to use our input as-is
++ Remove other projection code
++ Create auto-calibrator
++ Create secondary skybox webcam dropdown (update webcam script)
++ Create calibration save file
++ Reduce vars (condense into 2d points)
++ Use PTGui settings
++ Create usage documentation
++ Optimize code (remove duplicate code in stereo eye index if statement)
++ Add valid fallback shader
++ Remove looping y-data, create dynamic image limits
+
 
 ## Additional references
 The scripts used in this shader come from the following sources:
