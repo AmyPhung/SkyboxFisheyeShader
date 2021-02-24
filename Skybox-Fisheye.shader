@@ -1,25 +1,33 @@
+// For Documentation, see https://docs.google.com/document/d/1enusteUBDpHemOxpGrpasH_f7sT_tqDMNkcPdP22Kyw/edit?usp=sharing
+
 Shader "Skybox/Fisheye" {
     Properties{
         _Tint("Tint Color", Color) = (.5, .5, .5, .5)
         [Gamma] _Exposure("Exposure", Range(0, 8)) = 1.0
         _Rotation("Rotation", Range(0, 360)) = 0
+        [NoScaleOffset] _Tex("Stereo Spherical  (HDR)", 2D) = "grey" {}
+        // Fisheye requires two separate images
         [NoScaleOffset] _LTex("Left Spherical  (HDR)", 2D) = "grey" {}
         [NoScaleOffset] _RTex("Right Spherical  (HDR)", 2D) = "grey" {}
-        _L_CX("Left Image Center (X)", Range(0, 1)) = 0.5
-        _L_CY("Left Image Center (Y)", Range(0, 1)) = 0.5
-        _R_CX("Right Image Center (X)", Range(0, 1)) = 0.5
-        _R_CY("Right Image Center (Y)", Range(0, 1)) = 0.5
-
-        //TODO: Make radius more dynamic, don't over-constrain
-        _L_RX("Left Image Radius (X)", Range(0, 1)) = 0.5
-        _L_RY("Left Image Radius (Y)", Range(0, 1)) = 0.5
-        _R_RX("Right Image Radius (X)", Range(0, 1)) = 0.5
-        _R_RY("Right Image Radius (Y)", Range(0, 1)) = 0.5
-
         [KeywordEnum(6 Frames Layout, Latitude Longitude Layout, Fisheye Layout)] _Mapping("Mapping", Float) = 1
         [Enum(360 Degrees, 0, 180 Degrees, 1)] _ImageType("Image Type", Float) = 0
         [Toggle] _MirrorOnBack("Mirror on Back", Float) = 0
         [Enum(None, 0, Side by Side, 1, Over Under, 2)] _Layout("3D Layout", Float) = 0
+
+        // Fisheye Calibration
+        _L_CX("Left Image Center (X)", Range(0, 1)) = 0.5
+        _L_CY("Left Image Center (Y)", Range(0, 1)) = 0.5
+        _L_RX("Left Image Radius (X)", Range(0, 1)) = 0.5
+        _L_RY("Left Image Radius (Y)", Range(0, 1)) = 0.5
+
+        _R_CX("Right Image Center (X)", Range(0, 1)) = 0.5
+        _R_CY("Right Image Center (Y)", Range(0, 1)) = 0.5
+        _R_RX("Right Image Radius (X)", Range(0, 1)) = 0.5
+        _R_RY("Right Image Radius (Y)", Range(0, 1)) = 0.5
+
+        _a("Fisheye a", Range(-2, 2)) = 0
+        _b("Fisheye b", Range(-2, 2)) = 0
+        _c("Fisheye c", Range(-2, 2)) = 0
     }
 
         SubShader{
@@ -38,15 +46,23 @@ Shader "Skybox/Fisheye" {
 
                 #include "UnityCG.cginc"
 
+                half4 _Tint;
+                half _Exposure;
+                float _Rotation;
+
+        #ifndef _MAPPING_6_FRAMES_LAYOUT
+                bool _MirrorOnBack;
+                int _ImageType;
+                int _Layout;
+        #endif
+
+        #ifdef _MAPPING_FISHEYE_LAYOUT
                 sampler2D _LTex;
                 float4 _LTex_TexelSize;
                 half4 _LTex_HDR;
                 sampler2D _RTex;
                 float4 _RTex_TexelSize;
                 half4 _RTex_HDR;
-                half4 _Tint;
-                half _Exposure;
-                float _Rotation;
 
                 float _L_CX;
                 float _L_CY;
@@ -56,10 +72,15 @@ Shader "Skybox/Fisheye" {
                 float _L_RY;
                 float _R_RX;
                 float _R_RY;
-        #ifndef _MAPPING_6_FRAMES_LAYOUT
-                bool _MirrorOnBack;
-                int _ImageType;
-                int _Layout;
+
+                float _a;
+                float _b;
+                float _c;
+        #else
+                // Non-fisheye layouts take in one image as input
+                sampler2D _Tex;
+                float4 _Tex_TexelSize;
+                half4 _Tex_HDR;
         #endif
 
         #ifndef _MAPPING_6_FRAMES_LAYOUT
@@ -85,12 +106,28 @@ Shader "Skybox/Fisheye" {
                     // r = atan2(sqrt(x * x + y * y), p.z) / pi
                     // phi = atan2(y, x)
 
+                    // In units of
+                    //"hfov": 3.6e2,
+                    //"vfov" : 1.8e2,
+
+                    // TODO: replace UNITY_PI with FOV from PTGUI
+                    // NOTE: current center offset is consistent with d and e in the correction model (need to convert from pixels, but otherwise same)
                     float r = atan2(length(n.xy), abs(n.z)) / UNITY_PI;
                     float phi = atan2(n.y, n.x * sign(n.z));
-                    float2 uv = float2(cos(phi), sin(phi)) * r + .5;
 
-                    uv.x *= .5;
-                    //Choose image half to sample depending on sign of normal.z
+                    float d = 1 - (_a + _b + _c);
+
+                    //// TODO: find if exponents are a thing
+                    //// TODO: consider units of PTGui file
+
+                    // TODO: Figure out fisheye factor effects
+                    float r_src = _a * r*r*r*r + _b * r*r*r + _c * r*r + d * r;
+
+                    // TODO: compute corrected phi value here using lens distoriton parameters
+                    float2 uv = float2(cos(phi), sin(phi)) * r_src + .5; // 0.5 to center it at 0 to 1 instead of -0.5 to 0.5
+
+                    uv.x *= .5; // Because uv goes form 0 to 1, and the image has two fisheyes, we need to halve it)
+                    //Choose image half to sample depending on sign of normal.z - either the front or back (but we'll only ever use the front because we're not doing 360 images)
                     uv.x += .25 * (1 - sign(n.z));
 
                     return uv;
@@ -243,6 +280,24 @@ Shader "Skybox/Fisheye" {
                     //    return half4(0, 0, 0, 1);
                     tc.x = fmod(tc.x * i.image180ScaleAndCutoff[0], 1);
                     //tc = (tc + i.layout3DScaleAndOffset.xy) * i.layout3DScaleAndOffset.zw;
+
+                    half4 tex;
+                    half3 c;
+                    if (unity_StereoEyeIndex == 0) { // Left Eye
+                        tc.x = (2 * _L_RX * tc.x) + _L_CX - _L_RX;
+                        tc.y = (2 * _L_RY * tc.y) + _L_CY - _L_RY;
+                        tex = tex2D(_LTex, tc);
+                        c = DecodeHDR(tex, _LTex_HDR);
+                    }
+                    else { // Right Eye
+                        tc.x = (2 * _R_RX * tc.x) + _R_CX - _R_RX;
+                        tc.y = (2 * _R_RY * tc.y) + _R_CY - _R_RY;
+                        tex = tex2D(_RTex, tc);
+                        c = DecodeHDR(tex, _RTex_HDR);
+                    }
+                    c = c * _Tint.rgb * unity_ColorSpaceDouble.rgb;
+                    c *= _Exposure;
+                    return half4(c, 1);
         #else// _MAPPING_LATITUDE_LONGITUDE_LAYOUT
                     float2 tc = ToRadialCoords(i.texcoord);
                     if (tc.x > i.image180ScaleAndCutoff[1])
@@ -250,26 +305,14 @@ Shader "Skybox/Fisheye" {
                     tc.x = fmod(tc.x * i.image180ScaleAndCutoff[0], 1);
                     tc = (tc + i.layout3DScaleAndOffset.xy) * i.layout3DScaleAndOffset.zw;
         #endif
-                    if (unity_StereoEyeIndex == 0) {
-                        // Left Eye
-                        tc.x = (2 * _L_RX * tc.x) + _L_CX - _L_RX;
-                        tc.y = (2 * _L_RY * tc.y) + _L_CY - _L_RY;
-                        half4 tex = tex2D(_LTex, tc);
-                        half3 c = DecodeHDR(tex, _LTex_HDR);
-                        c = c * _Tint.rgb * unity_ColorSpaceDouble.rgb;
-                        c *= _Exposure;
-                        return half4(c, 1);
-                    }
-                    else {
-                        // Right Eye
-                        tc.x = (2 * _R_RX * tc.x) + _R_CX - _R_RX;
-                        tc.y = (2 * _R_RY * tc.y) + _R_CY - _R_RY;
-                        half4 tex = tex2D(_RTex, tc);
-                        half3 c = DecodeHDR(tex, _RTex_HDR);
-                        c = c * _Tint.rgb * unity_ColorSpaceDouble.rgb;
-                        c *= _Exposure;
-                        return half4(c, 1);
-                    }
+
+        #ifndef _MAPPING_FISHEYE_LAYOUT
+                    half4 tex = tex2D(_Tex, tc);
+                    half3 c = DecodeHDR(tex, _Tex_HDR);
+                    c = c * _Tint.rgb * unity_ColorSpaceDouble.rgb;
+                    c *= _Exposure;
+                    return half4(c, 1);
+        #endif
                 }
                 ENDCG
             }

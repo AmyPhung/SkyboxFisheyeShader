@@ -7,6 +7,7 @@ namespace UnityEditor
     internal class SkyboxFisheyeShaderGUI : ShaderGUI
     {
         readonly AnimBool m_ShowLatLongLayout = new AnimBool();
+        readonly AnimBool m_ShowFisheyeLayout = new AnimBool();
         readonly AnimBool m_ShowMirrorOnBack = new AnimBool();
         readonly AnimBool m_Show3DControl = new AnimBool();
 
@@ -17,6 +18,7 @@ namespace UnityEditor
             if (!m_Initialized)
             {
                 m_ShowLatLongLayout.valueChanged.AddListener(materialEditor.Repaint);
+                m_ShowFisheyeLayout.valueChanged.AddListener(materialEditor.Repaint);
                 m_ShowMirrorOnBack.valueChanged.AddListener(materialEditor.Repaint);
                 m_Show3DControl.valueChanged.AddListener(materialEditor.Repaint);
                 m_Initialized = true;
@@ -28,19 +30,39 @@ namespace UnityEditor
             ShowProp(materialEditor, FindProperty("_Tint", props));
             ShowProp(materialEditor, FindProperty("_Exposure", props));
             ShowProp(materialEditor, FindProperty("_Rotation", props));
-            ShowProp(materialEditor, FindProperty("_L_CX", props));
-            ShowProp(materialEditor, FindProperty("_L_CY", props));
-            ShowProp(materialEditor, FindProperty("_R_CX", props));
-            ShowProp(materialEditor, FindProperty("_R_CY", props));
-            ShowProp(materialEditor, FindProperty("_L_RX", props));
-            ShowProp(materialEditor, FindProperty("_L_RY", props));
-            ShowProp(materialEditor, FindProperty("_R_RX", props));
-            ShowProp(materialEditor, FindProperty("_R_RY", props));
-            ShowProp(materialEditor, FindProperty("_LTex", props));
-            ShowProp(materialEditor, FindProperty("_RTex", props));
+
             EditorGUIUtility.labelWidth = lw;
 
-            m_ShowLatLongLayout.target = ShowProp(materialEditor, FindProperty("_Mapping", props)) == 1;
+            float layout = ShowProp(materialEditor, FindProperty("_Mapping", props));
+            m_ShowLatLongLayout.target = layout == 1;
+            m_ShowFisheyeLayout.target = layout == 2;
+
+
+            if (EditorGUILayout.BeginFadeGroup(m_ShowFisheyeLayout.faded))
+            {
+                // Fisheye requires two separate images
+                ShowProp(materialEditor, FindProperty("_LTex", props));
+                ShowProp(materialEditor, FindProperty("_RTex", props));
+
+                ShowProp(materialEditor, FindProperty("_L_CX", props));
+                ShowProp(materialEditor, FindProperty("_L_CY", props));
+                ShowProp(materialEditor, FindProperty("_L_RX", props));
+                ShowProp(materialEditor, FindProperty("_L_RY", props));
+
+                ShowProp(materialEditor, FindProperty("_R_CX", props));
+                ShowProp(materialEditor, FindProperty("_R_CY", props));
+                ShowProp(materialEditor, FindProperty("_R_RX", props));
+                ShowProp(materialEditor, FindProperty("_R_RY", props));
+
+                ShowProp(materialEditor, FindProperty("_a", props));
+                ShowProp(materialEditor, FindProperty("_b", props));
+                ShowProp(materialEditor, FindProperty("_c", props));
+            } else
+            {
+                // Other layouts expect one stereo images
+                ShowProp(materialEditor, FindProperty("_Tex", props));
+            }
+
             if (EditorGUILayout.BeginFadeGroup(m_ShowLatLongLayout.faded))
             {
                 m_ShowMirrorOnBack.target = ShowProp(materialEditor, FindProperty("_ImageType", props)) == 1;
@@ -58,6 +80,9 @@ namespace UnityEditor
                     ShowProp(materialEditor, FindProperty("_Layout", props));
                 EditorGUILayout.EndFadeGroup();
             }
+            EditorGUILayout.EndFadeGroup();
+
+
             EditorGUILayout.EndFadeGroup();
 
             // Let the default implementation add the extra shader properties at the bottom.
