@@ -275,9 +275,7 @@ Shader "Skybox/Fisheye" {
                     float2 tc = ToFisheyeCoords(i.texcoord);
                     if (tc.x > i.image180ScaleAndCutoff[1])
                         return half4(0,0,0,1);
-                    // TODO: Implement this cutoff for y
-                    //if (tc.y > i.image180ScaleAndCutoff[0])
-                    //    return half4(0, 0, 0, 1);
+
                     tc.x = fmod(tc.x * i.image180ScaleAndCutoff[0], 1);
                     //tc = (tc + i.layout3DScaleAndOffset.xy) * i.layout3DScaleAndOffset.zw;
 
@@ -295,6 +293,9 @@ Shader "Skybox/Fisheye" {
                         tex = tex2D(_RTex, tc);
                         c = DecodeHDR(tex, _RTex_HDR);
                     }
+
+                    if (tc.y > 1 || tc.y < 0)
+                        return half4(0, 0, 0, 1);
                     c = c * _Tint.rgb * unity_ColorSpaceDouble.rgb;
                     c *= _Exposure;
                     return half4(c, 1);

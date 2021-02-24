@@ -73,7 +73,6 @@ namespace UnityEditor
                     EditorGUI.indentLevel--;
                 }
                 EditorGUILayout.EndFadeGroup();
-
                 // No 3D settings unless PlayerSettings have VR support.
                 m_Show3DControl.value = PlayerSettings.virtualRealitySupported;
                 if (EditorGUILayout.BeginFadeGroup(m_Show3DControl.faded))
